@@ -3,7 +3,8 @@ from market_access import *
 import numpy as np
 from time import sleep
 
-ORDER_SIZE = 800
+ORDER_SIZE = 1000
+LOOKBACK_PERIOD = 20
 
 def main():
     tick, status = get_tick()
@@ -27,11 +28,14 @@ def main():
             
             # Update price history and calculate moving average
             price_history[ticker].append(last_price)
-            # if len(price_history[ticker]) > LOOKBACK_PERIOD:
-            #     price_history[ticker].pop(0)
+            if len(price_history[ticker]) > LOOKBACK_PERIOD:
+                price_history[ticker].pop(0)
             
-            # if len(price_history[ticker]) < LOOKBACK_PERIOD:
-            #     continue
+            if len(price_history[ticker]) < LOOKBACK_PERIOD:
+                continue
+
+            if tick<240:
+                pass#sleep(0.1)
             
             moving_avg = np.mean(price_history[ticker])
             deviation = (last_price - moving_avg) / moving_avg
@@ -39,27 +43,25 @@ def main():
             if position<8000 and deviation > 0: deviation /= 2
 
             # Mean reversion signals
-            if deviation > DEVIATION_THRESHOLD[ticker] and position > MAX_SHORT_EXPOSURE+ORDER_SIZE:
+            if deviation < -0.005 and position > MAX_SHORT_EXPOSURE+ORDER_SIZE+60000:
                 if position < 0 and gross>GROSS_LIMIT-ORDER_SIZE:
                     continue
                 # Price is above mean, sell
-                print(f"placing sell order for {ticker} at {best_ask_price+0.02}")
-                place_order(ticker, 'SELL', best_ask_price+0.30, ORDER_SIZE)
-            elif deviation < -DEVIATION_THRESHOLD[ticker] and position < MAX_LONG_EXPOSURE-ORDER_SIZE:
+                print(f"placing sell order for {ticker}")
+                place_order(ticker, 'SELL', best_bid_price, ORDER_SIZE)
+            elif deviation > 0.005 and position < MAX_LONG_EXPOSURE-ORDER_SIZE-60000:
                 if position > 0 and gross>GROSS_LIMIT-ORDER_SIZE:
                     continue
                 # Price is below mean, buy
-                print(f"placing buy order for {ticker} at {best_bid_price-0.02}")
-                place_order(ticker, 'BUY', best_bid_price-0.30, ORDER_SIZE)
+                print(f"placing buy order for {ticker}")
+                place_order(ticker, 'BUY', best_ask_price, ORDER_SIZE)
             
-            sleep(0.2)  # Avoid API rate limits
+            sleep(0.1)  # Avoid API rate limits
         
         tick, status = get_tick()
 
-        if tick>540:
-            return
+        
+
 
 if __name__ == '__main__':
     main()
-
-
